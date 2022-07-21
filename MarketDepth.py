@@ -8,11 +8,12 @@ def MarketDepthV2(Pools, priceImpact):
     Pools = Pools
     MarketDepth = pd.DataFrame()
 
-    B = np.abs( (Pools['liquidityInRange']* pow(10, 6-18)/np.sqrt((priceImpact)*Pools['Prices']) ) - (Pools['liquidityInRange'] * pow(10, 6-18) / np.sqrt(Pools['Prices'])) )
-    C = B / 1000000
-    MarketDepth["MarketDepth"] = C
+    Pools['liquidity'] = np.sqrt(Pools['reserve0']*Pools['reserve1']/Pools['Prices'])
+    B = np.abs( (Pools['liquidity']/np.sqrt((priceImpact)*Pools['Prices']) ) - (Pools['liquidity']  / np.sqrt(Pools['Prices'])) )
+    C = B
+    MarketDepth["depth"] = C
 
-    MarketDepth = pd.concat([Pools['timestamp'], MarketDepth["MarketDepth"]], axis = 1)
+    MarketDepth = pd.concat([Pools['timestamp'], MarketDepth["depth"]], axis = 1)
     #plt.plot(MarketDepth['timestamp'], MarketDepth["MarketDepth"])
 
     return MarketDepth

@@ -4,6 +4,7 @@ import json
 import matplotlib.pyplot as plt
 import time
 import os
+import numpy as np
 from Mint import *
 
 # #convert sqrtPriceX96 to prices
@@ -85,3 +86,49 @@ def CleanSwaps(Swaps):
     Swaps = Swaps.rename(columns={'sqrtPriceX96': 'Prices'})
 
     return Swaps
+
+def CleanPoolV2(Pools):
+    Pools = Pools
+
+    #Rename
+    Pools = Pools.rename(columns={'date': 'timestamp'})
+
+    #Time rounding
+    Pools['timestamp'] = pd.to_datetime(Pools['timestamp'], unit='s')
+    Pools['timestamp'] = Pools['timestamp'].round('D')
+
+    #Change Types
+    Pools['reserve0'] = Pools['reserve0'].astype(float)
+    Pools['reserve1'] = Pools['reserve1'].astype(float)
+    Pools['liquidityInRange'] = np.sqrt(Pools['reserve0']*Pools['reserve1'])
+    Pools['reserveUSD'] = Pools['reserveUSD'].astype(float)
+
+    Pools['Prices'] = Pools['reserve1']/Pools['reserve0']
+
+    return Pools
+
+def CleanFees(Fees):
+    Fees = Fees
+
+    #Rename
+    Fees = Fees.rename(columns={'transaction.timestamp': 'timestamp'})
+    Fees = Fees.rename(columns={'tickLower.tickIdx': 'tickLower'})
+    Fees = Fees.rename(columns={'tickUpper.tickIdx': 'tickUpper'})
+    Fees = Fees.rename(columns={'owner': 'origin'})
+
+
+    #Time rounding
+    Fees['timestamp'] = pd.to_datetime(Fees['timestamp'], unit='s')
+    Fees['timestamp'] = Fees['timestamp'].round('D')
+
+    #Change Types
+    Fees['depositedToken0'] = Fees['depositedToken0'].astype(float)
+    Fees['depositedToken1'] = Fees['depositedToken1'].astype(float)
+    Fees['withdrawnToken0'] = Fees['withdrawnToken0'].astype(float)
+    Fees['withdrawnToken1'] = Fees['withdrawnToken1'].astype(float)
+    Fees['collectedFeesToken0'] = Fees['collectedFeesToken0'].astype(float)
+    Fees['collectedFeesToken1'] = Fees['collectedFeesToken1'].astype(float)
+    Fees['tickLower'] = Fees['tickLower'].astype(int)
+    Fees['tickUpper'] = Fees['tickUpper'].astype(int)
+
+    return Fees
