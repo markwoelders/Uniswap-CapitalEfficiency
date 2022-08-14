@@ -7,15 +7,16 @@ import os
 import numpy as np
 from Mint import *
 
-# #convert sqrtPriceX96 to prices
+#The DataCleaning.py file is used to clean the gathered data from the Uniswap Subgraph API
+#DataCleaning include;, changing types, converting data to human readable data, rounding values such as dates and renaming
+
+
+# Special case: convert sqrtPriceX96 to human readable prices
 # # sqrtPriceX96: The current price of the pool as a sqrt(token1/token0) Q64.96 value
-# # Might not be accurate as of now since errors = coerce is used
 # A = pd.to_numeric(DATAFRAME1['sqrtPriceX96'], errors='coerce')
 # DATAFRAME1['prices'] = pow((A / pow(2, 96)), 2) * pow(10, 6-18) # 6-18 = decimals0 - decimals1
 # #prices expressed in currency of token1: 1 USDC (token0) = 0.00056 ETH (token1)
-#
-# #convert timestamp
-# DATAFRAME1['timestamp'] = pd.to_datetime(DATAFRAME1['timestamp'],unit='s')
+
 
 
 def CleanPool(Pools):
@@ -34,7 +35,7 @@ def CleanPool(Pools):
     Pools['volumeToken1'] = Pools['volumeToken1'].astype(float)
     Pools['liquidityInRange'] = Pools['liquidityInRange'].astype(float)
 
-    #sqrt price
+    #sqrt price special case
     A = pd.to_numeric(Pools['sqrtPrice'], errors='coerce')
     Pools['sqrtPrice'] = pow((A / pow(2, 96)), 2) * pow(10, 6 - 18)  # 6-18 = decimals0 - decimals1
 
@@ -44,9 +45,11 @@ def CleanPool(Pools):
 
     return Pools
 
-def CleanMints(Mints):
+def CleanMints(Mints, timeround = True):
+    #Time rounding
     Mints['timestamp'] = pd.to_datetime(Mints['timestamp'], unit='s')
-    Mints['timestamp'] = Mints['timestamp'].round('D')
+    if timeround:
+        Mints['timestamp'] = Mints['timestamp'].round('D')
 
     #Change types
     Mints['amount0'] = Mints['amount0'].astype(float)
@@ -58,9 +61,11 @@ def CleanMints(Mints):
 
     return Mints
 
-def CleanBurns(Burns):
+def CleanBurns(Burns, timeround = True, negativeAmount = True):
+    #Time rounding
     Burns['timestamp'] = pd.to_datetime(Burns['timestamp'], unit='s')
-    Burns['timestamp'] = Burns['timestamp'].round('D')
+    if timeround:
+        Burns['timestamp'] = Burns['timestamp'].round('D')
 
     #Change types
     Burns['amount0'] = Burns['amount0'].astype(float)
@@ -70,14 +75,16 @@ def CleanBurns(Burns):
     Burns['tickLower'] = Burns['tickLower'].astype(int)
     Burns['tickUpper'] = Burns['tickUpper'].astype(int)
 
+    if negativeAmount:
     # Change burns to negatives
-    Burns['amount0'] = Burns['amount0'] * -1
-    Burns['amount1'] = Burns['amount1'] * -1
-    Burns['amount'] = Burns['amount'] * -1
+        Burns['amount0'] = Burns['amount0'] * -1
+        Burns['amount1'] = Burns['amount1'] * -1
+        Burns['amount'] = Burns['amount'] * -1
 
     return Burns
 
 def CleanSwaps(Swaps):
+    #Time converting
     Swaps['timestamp'] = pd.to_datetime(Swaps['timestamp'], unit='s')
 
     #convert sqrtPriceX96 to prices

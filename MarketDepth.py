@@ -2,13 +2,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
+#The MarketDepth.py file is used to calculate the marketdepth for Uniswap V2 and Uniswap V3 pools.
+#Main input variables: #Pooladdress, priceImpact, tickspacing
+#Code mainly taken from "The Dominance of Uniswap v3 Liquidity" by Gordon Liao and Dan Robinson.
+#Code is in fact the implemantation of Math Appendix 7.1(Derivation for v2 market depth) and 7.2(Derivation for v3 market depth)
 
+#V2 depth should be 20x/30x lower than V3 according to Adams (researcher at Uniswap)
+
+
+### Appendix 7.1(Derivation for v2 market depth) ####
 def MarketDepthV2(Pools, priceImpact):
     priceImpact = priceImpact
     Pools = Pools
     MarketDepth = pd.DataFrame()
 
-    Pools['liquidity'] = np.sqrt(Pools['reserve0']*Pools['reserve1']/Pools['Prices'])
+    Pools['liquidity'] = np.sqrt(Pools['reserve0']*Pools['reserve1'])
     B = np.abs( (Pools['liquidity']/np.sqrt((priceImpact)*Pools['Prices']) ) - (Pools['liquidity']  / np.sqrt(Pools['Prices'])) )
     C = B
     MarketDepth["depth"] = C
@@ -17,6 +25,10 @@ def MarketDepthV2(Pools, priceImpact):
     #plt.plot(MarketDepth['timestamp'], MarketDepth["MarketDepth"])
 
     return MarketDepth
+
+
+### Appendix 7.1(Derivation for v2 market depth) ####
+
 
 def genLiqRange(dft, tickspacing=60):
     #' Generate Liquidity Distribution (liquidity amount) based on default tick size
@@ -159,7 +171,8 @@ def fillGranularDistributionOverTime(liqdist, depthpct=0.02, tickspacing=60):
     return dfdepth
 
 
-
+#Created to easily use/call the functions listed above
+#MarketDepthV3Part1() takes LONGGGGGGGGGGG to run. Safe file directly afterwards is preferred
 def MarketDepthV3Part1(Pools, Mints, Burns, tickspacing=60, decimals0 = 6, decimals1 = 18, UpperCut = 240000, LowerCut = 170000):
     Pools = Pools
     Mints = Mints
@@ -175,7 +188,7 @@ def MarketDepthV3Part1(Pools, Mints, Burns, tickspacing=60, decimals0 = 6, decim
 
     return dfrgns, MintBurn
 
-
+#MarketDepthV3Part2() easy to run. Safe file directly afterwards is not necessary
 def MarketDepthV3Part2(dfrgns, Pools, depthpct=0.02, tickspacing=60, decimals0 = 6, decimals1 = 18):
     depthpct = depthpct
     tickspacing = tickspacing
@@ -186,7 +199,7 @@ def MarketDepthV3Part2(dfrgns, Pools, depthpct=0.02, tickspacing=60, decimals0 =
     dfrgns = dfrgns.reset_index()
     dfrgns = pd.merge(dfrgns, dfprice, on="timestamp")
 
-    dfrgns['amount'] = dfrgns['amount'] / pow(10, 6 - 18)
+    dfrgns['amount'] = dfrgns['amount'] / pow(10, 6 - 18) #transfer back to non-cleaned data
 
     liqdist = pd.DataFrame(genDepthOverTime(dfrgns, tickspacing=tickspacing))
     dfdepth = fillGranularDistributionOverTime(liqdist, depthpct=depthpct, tickspacing=tickspacing)
