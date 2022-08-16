@@ -158,7 +158,7 @@ def burn(timestamp_counter = 1654041601, pool = '"0x8ad599c3a0ff1de082011efddc58
 #swaps() returns token0id, token0symbol, token0decimals, token1id, token1symbol, token1decimals,
 # gasUsed, gasPrice, blockNumber, sqrtPriceX96(Price of the pool after swap as sqrt(token1/token0) Q64.96 value),
 # amount0, amount1, timestamp, tick(tick of price), id, origin(Address user) of swap transaction
-def swaps(timestamp_counter = 1654041601, pool = '"0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8"' ):
+def swaps(timestamp_counter = 1654041601, end = 1634041601, pool = '"0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8"' ):
     DATAFRAME2 = pd.DataFrame()
     DATA2 = pd.DataFrame()
     timestamp_counter = timestamp_counter
@@ -172,29 +172,8 @@ def swaps(timestamp_counter = 1654041601, pool = '"0x8ad599c3a0ff1de082011efddc5
             swaps(orderBy: timestamp, orderDirection: desc, first: 1000, skip: ''' + str(0) + ''', where:
              { pool: ''' + str(pool) + ''', timestamp_lt: ''' + str(timestamp_counter) + '''}
             ) {
-              pool {
-                token0 {
-                  id
-                  symbol
-                  decimals
-                }
-                token1 {
-                  id
-                  symbol
-                  decimals
-                }
-              }
-                transaction{
-                gasUsed
-                gasPrice
-                blockNumber
-              }
               sqrtPriceX96
-              amount0
-              amount1
               timestamp
-              tick
-              id
               origin
              }
             }
@@ -213,6 +192,9 @@ def swaps(timestamp_counter = 1654041601, pool = '"0x8ad599c3a0ff1de082011efddc5
 
             print(timestamp_counter)
 
+            if int(timestamp_counter) < end:
+                return DATAFRAME2
+
 
         except KeyError as e:
             print(e)
@@ -221,7 +203,7 @@ def swaps(timestamp_counter = 1654041601, pool = '"0x8ad599c3a0ff1de082011efddc5
                 break
             elif e.args[0] == 'data':
                 print(e)
-                time.sleep(1)
+                time.sleep(5)
                 continue
 
 #pools2() needs timestamp_counter (which is max date up to one wants data), and pool adress as input variables
@@ -495,7 +477,7 @@ def LiqSnapsV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c
 #mintV2() needs timestamp_counter (which is max date up to one wants data), and pool adress as input variables
 #If random date in the future is given, latest date is current date
 #mintV2() returns to (who receives LP tokens), sender, timestamp, liquidity, amount0, amount1 from LP provider add liquidity transaction
-def mintV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"' ):
+def mintV2(timestamp_counter = 1654041601, end = 1620259200, pool = '"0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"' ):
     DATAFRAME2 = pd.DataFrame()
     DATA2 = pd.DataFrame()
     timestamp_counter = timestamp_counter
@@ -505,7 +487,7 @@ def mintV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185
             try:
 
                 data = ''' 
-                {mints(orderBy: timestamp, orderDirection: desc, first: 1000, where:
+                {mints(orderBy: timestamp, orderDirection: desc, first: 100, where:
                  { pair: ''' + str(pool) + ''', timestamp_lt: ''' + str(timestamp_counter) + '''}
                 ) 
                     {   to,
@@ -527,9 +509,11 @@ def mintV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185
 
                 DATAFRAME2 = pd.concat([DATA2, DATA])
                 DATA2 = DATAFRAME2
-                timestamp_counter = DATA["timestamp"][999]
+                timestamp_counter = DATA["timestamp"][99]
 
                 print(timestamp_counter)
+                if int(timestamp_counter) < end:
+                    return DATAFRAME2
 
             except KeyError as e:
 
@@ -554,7 +538,7 @@ def mintV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185
 #burnV2() needs timestamp_counter (which is max date up to one wants data), and pool adress as input variables
 #If random date in the future is given, latest date is current date
 #burnV2() returns to, sender(who burns LP tokens), timestamp, liquidity, amount0, amount1 from LP provider remove liquidity transaction
-def burnV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"' ):
+def burnV2(timestamp_counter = 1654041601, end = 1620259200, pool = '"0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"' ):
     DATAFRAME2 = pd.DataFrame()
     DATA2 = pd.DataFrame()
     timestamp_counter = timestamp_counter
@@ -564,7 +548,7 @@ def burnV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185
             try:
 
                 data = ''' 
-                {burns(orderBy: timestamp, orderDirection: desc, first: 1000, where:
+                {burns(orderBy: timestamp, orderDirection: desc, first: 100, where:
                  { pair: ''' + str(pool) + ''', timestamp_lt: ''' + str(timestamp_counter) + '''}
                 ) 
                     {
@@ -587,9 +571,12 @@ def burnV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185
 
                 DATAFRAME2 = pd.concat([DATA2, DATA])
                 DATA2 = DATAFRAME2
-                timestamp_counter = DATA["timestamp"][999]
+                timestamp_counter = DATA["timestamp"][99]
 
                 print(timestamp_counter)
+
+                if int(timestamp_counter) < end:
+                    return DATAFRAME2
 
             except KeyError as e:
 
@@ -614,7 +601,7 @@ def burnV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185
 
 
 
-def swapV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"' ):
+def swapV2(timestamp_counter = 1654041601, end = 1620259200,  pool = '"0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"' ):
     DATAFRAME2 = pd.DataFrame()
     DATA2 = pd.DataFrame()
     timestamp_counter = timestamp_counter
@@ -644,8 +631,8 @@ def swapV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185
                 DATA2 = DATAFRAME2
                 timestamp_counter = DATA["timestamp"][999]
 
-                if int(timestamp_counter) < 1620259200:
-                    break
+                if int(timestamp_counter) < end:
+                    return DATAFRAME2
 
             except KeyError as e:
 
@@ -661,7 +648,7 @@ def swapV2(timestamp_counter = 1654041601, pool = '"0xb4e16d0168e52d35cacd2c6185
 
                     print(e)
 
-                    time.sleep(0.5)
+                    time.sleep(10)
 
                     continue
 

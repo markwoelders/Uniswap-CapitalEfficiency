@@ -31,30 +31,38 @@ def LPreturns(Fees, Pools, Burns):
     Pools['token0Price'] = Pools['token0Price'].astype(float)
     Pools['token1Price'] = Pools['token1Price'].astype(float)
 
-    Fees2 = pd.merge(Fees, Pools[['token1Price', 'token0Price', 'timestamp']], on = ['timestamp'] , how = "inner")
+    Fees2 = pd.merge(Fees, Pools[['token1Price', 'token0Price', 'timestamp']], on=['timestamp'], how="inner")
 
-    #Calculate Fees for collectedFeesToken >= withdrawn, else -999 used to filter out odd transactions
-    Fees2['FeesToken0'] = np.where(Fees2['collectedFeesToken0'] >= Fees2['withdrawnToken0'], Fees2['collectedFeesToken0'] - Fees2['withdrawnToken0'], -999)
-    Fees2['FeesToken1'] = np.where(Fees2['collectedFeesToken1'] >= Fees2['withdrawnToken1'], Fees2['collectedFeesToken1'] - Fees2['withdrawnToken1'], -999)
+    # Calculate Fees for collectedFeesToken >= withdrawn, else -999 used to filter out odd transactions
+    Fees2['FeesToken0'] = np.where(Fees2['collectedFeesToken0'] >= Fees2['withdrawnToken0'],
+                                   Fees2['collectedFeesToken0'] - Fees2['withdrawnToken0'], -999)
+    Fees2['FeesToken1'] = np.where(Fees2['collectedFeesToken1'] >= Fees2['withdrawnToken1'],
+                                   Fees2['collectedFeesToken1'] - Fees2['withdrawnToken1'], -999)
 
-    #Remove postions that are not withdrawn yet
-    Fees2 = Fees2[(Fees2['withdrawnToken0']!=0) & (Fees2['withdrawnToken1']!=0)]
+    # Merge Fees dataframe with Burns dataframe to make sure data is correct
+    A = pd.merge(Fees2, Burns[['amount0', 'amount1', 'timestamp', 'origin', 'tickLower', 'tickUpper']],
+                 on=['origin', 'tickLower', 'tickUpper'], how="inner")
 
-    #Merge Fees dataframe with Burns dataframe to make sure data is correct
-    A = pd.merge(Fees2, Burns[['amount0', 'amount1', 'timestamp', 'origin', 'tickLower', 'tickUpper']], on = ['origin', 'tickLower', 'tickUpper'] , how = "inner")
+    # Remove positions where withdrawn not equal to amounts from burn file (should be equal)
+    B = A[(A['withdrawnToken0'] == -1 * A['amount0']) & (A['withdrawnToken1'] == -1 * A['amount1'])]
 
-    #Remove positions where withdrawn not equal to amounts from burn file (should be equal)
-    B = A[(A['withdrawnToken0']==-1*A['amount0']) & (A['withdrawnToken1']==-1*A['amount1'])]
-
-    #Remove postions where collectedFeesToken > withdrawn strangely, as collectedFeesToken should equal
+    # Remove postions where collectedFeesToken < withdrawn strangely, as collectedFeesToken should equal
     # withdrawn + fees
-    C = B[(B['FeesToken0']!=-999.0) & (B['FeesToken1']!=-999.0)]
-
+    C = B[(B['FeesToken0'] != -999.0) & (B['FeesToken1'] != -999.0)]
 
     Pools2 = Pools.rename(columns={'timestamp': 'timestamp_y'})
 
-    D = pd.merge(C, Pools2[['token1Price', 'token0Price', 'timestamp_y']], on = ['timestamp_y'] , how = "inner")
+    D = pd.merge(C, Pools2[['token1Price', 'token0Price', 'timestamp_y']], on=['timestamp_y'], how="inner")
 
+    R = pd.DataFrame()
+    R['V0'] = D['depositedToken0'] + D['depositedToken1'] * D['token0Price_x']
+    R['VT'] = D['withdrawnToken0'] + D['withdrawnToken1'] * D['token0Price_y']
+    R['F'] = D['FeesToken0'] + D['FeesToken1'] * D['token0Price_y']
+    R['Tot'] = ((R['VT'] + R['F']) / R['V0'] - 1)  # * 100
+
+    R['InvHolRet'] = ((D['depositedToken0'] + D['depositedToken1'] * D['token0Price_y']) / R['V0']) - 1
+    R['AdSelCos'] = (R['VT'] / R['V0'] - 1) - R['InvHolRet']
+    R['FeeYield'] = R['F'] / R['V0']
 
     #Split returns into components as in paper by Peter O'Neill
     #AdselCos should be negative (almost) everywhere
@@ -89,7 +97,7 @@ def LPreturnsV2(LiqSnaps, burnsV2, mintsV2):
     burnsV2['amount0'] = burnsV2['amount0'].astype(float)
     burnsV2['amount1'] = burnsV2['amount1'].astype(float)
 
-    A = pd.merge(mintsV2, burnsV2, on=['origin', 'liquidity'], how="inner")
+    A = pd.merge(mintsV2, burnsV2, on=['liquidity'], how="inner")
     A['timestamp_x'] = A['timestamp_x'].astype(int)
     A['timestamp_y'] = A['timestamp_y'].astype(int)
 
@@ -97,7 +105,7 @@ def LPreturnsV2(LiqSnaps, burnsV2, mintsV2):
                  right_on='timestamp').drop('timestamp', axis=1)
     B = pd.merge(C, LiqSnaps[['timestamp', 'reserve0', 'reserve1', 'liquidityTokenTotalSupply']], left_on='timestamp_y',
                  right_on='timestamp').drop('timestamp', axis=1)
-    B = B.drop_duplicates(keep='first', subset=['origin', 'timestamp_x', 'liquidity'])
+    B = B.drop_duplicates(keep='first', subset=['origin_x', 'timestamp_x', 'liquidity'])
 
     B['P_x'] = B['reserve1_x'] / B['reserve0_x']
     B['P_y'] = B['reserve1_y'] / B['reserve0_y']

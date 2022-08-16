@@ -36,6 +36,14 @@ def ratiosV3(Swaps, Mints, Burns):
     return FrequenciesSwap_Mints, FrequenciesSwap_Burns,FrequenciesMints_Burns, Freq_RatioSwap_Mints, Freq_RatioSwap_Burns, Freq_RatioMints_Burns
 
 def ratiosV2(swapsV2, mintsV2, burnsV2):
+    swapsV2['timestamp'] = swapsV2['timestamp'].astype(int)
+    burnsV2['timestamp'] = burnsV2['timestamp'].astype(int)
+    mintsV2['timestamp'] = mintsV2['timestamp'].astype(int)
+
+    swapsV2['timestamp'] = pd.to_datetime(swapsV2['timestamp'], unit='s')
+    mintsV2['timestamp'] = pd.to_datetime(mintsV2['timestamp'], unit='s')
+    burnsV2['timestamp'] = pd.to_datetime(burnsV2['timestamp'], unit='s')
+
     swapsV2['timestamp'] = swapsV2['timestamp'].round('D')
     mintsV2['timestamp'] = mintsV2['timestamp'].round('D')
     burnsV2['timestamp'] = burnsV2['timestamp'].round('D')

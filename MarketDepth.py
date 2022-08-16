@@ -184,8 +184,6 @@ def MarketDepthV3Part1(Pools, Mints, Burns, tickspacing=60, decimals0 = 6, decim
 
     dfrgns = genLiqRangeOverTime(MintBurn, tickspacing)
 
-
-
     return dfrgns, MintBurn
 
 #MarketDepthV3Part2() easy to run. Safe file directly afterwards is not necessary
