@@ -616,6 +616,7 @@ def swapV2(timestamp_counter = 1654041601, end = 1620259200,  pool = '"0xb4e16d0
                 ) 
                     {
                         timestamp,
+                        to
                     }
                 }
                 '''
@@ -630,6 +631,7 @@ def swapV2(timestamp_counter = 1654041601, end = 1620259200,  pool = '"0xb4e16d0
                 DATAFRAME2 = pd.concat([DATA2, DATA])
                 DATA2 = DATAFRAME2
                 timestamp_counter = DATA["timestamp"][999]
+                print(timestamp_counter)
 
                 if int(timestamp_counter) < end:
                     return DATAFRAME2

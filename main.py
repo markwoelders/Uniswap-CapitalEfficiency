@@ -68,7 +68,7 @@ Burns3000 = burn(timestamp_counter = 1654041601, pool = ETHUSDCV3_3000)
 #Save Data
 #Swaps.to_pickle("SwapsFull500!")
 #Pools.to_pickle("PoolsFull500!")
-#Mints.to_pickle("MintsFull500!")
+#Mints3000.to_pickle("MintsFull500!")
 #Burns.to_pickle("BurnsFull500!")
 
 #Read Data
@@ -99,10 +99,8 @@ Burns3000 = CleanBurns(Burns3000, timeround=True, negativeAmount=True)
 # Note data should contain nonrounded timestamp
 Mints500 = CleanMints(pd.read_pickle("MintsFull500!"), timeround=False)
 Burns500 = CleanBurns(pd.read_pickle("BurnsFull500!"), timeround=False, negativeAmount=False)
-DurationV3_500 = durationv3(Mints, Burns)
 Mints3000 = CleanMints(pd.read_pickle("MintsFull3000"), timeround=False)
 Burns3000 = CleanBurns(pd.read_pickle("BurnsFull3000"), timeround=False, negativeAmount=False)
-DurationV3_3000 = durationv3(Mints, Burns)
 
 mintsV3 = pd.concat([Mints500, Mints3000], axis = 0)
 burnsV3 = pd.concat([Burns500, Burns3000], axis = 0)
@@ -115,13 +113,13 @@ burnsV2 = burnsV2.rename(columns={'sender': 'origin'})
 DurationV2 = durationv2(mintsV2, burnsV2)
 DurationV3 = durationv3(mintsV3, burnsV3)
 
+DurationV3 = DurationV3[DurationV3.astype(int) > 0 ] #Filter out wrong data
+
 DurationV2.describe()
 DurationV3.describe()
 
-DurationV3 = DurationV3[DurationV3.astype(int) > 0 ]
-
-plt.hist(DurationV2.astype('timedelta64[D]'), weights=np.ones(len(DurationV2.astype('timedelta64[D]'))) / len(DurationV2.astype('timedelta64[D]')), bins = 60, label = 'V2', alpha = 0.9, color = "deeppink")
-plt.hist(DurationV3.astype('timedelta64[D]'), weights=np.ones(len(DurationV3.astype('timedelta64[D]'))) / len(DurationV3.astype('timedelta64[D]')), bins = 30, label = 'V3', alpha = 0.6, color = "mediumorchid")
+plt.hist(DurationV3.astype('timedelta64[D]'), weights=np.ones(len(DurationV3.astype('timedelta64[D]'))) / len(DurationV3.astype('timedelta64[D]')), bins = 60, label = 'V3', alpha = 0.9, color = "mediumorchid")
+plt.hist(DurationV2.astype('timedelta64[D]'), weights=np.ones(len(DurationV2.astype('timedelta64[D]'))) / len(DurationV2.astype('timedelta64[D]')), bins = 60, label = 'V2', alpha = 0.6, color = "gray")
 plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
 plt.xlabel('Duration (Days)')
 plt.ylabel("% LP positions")
@@ -129,18 +127,13 @@ plt.title('Liquidity Position Duration')
 plt.legend()
 plt.show()
 
-
-
 #Issue: We assume now that all liquidity is burned at the maximum date of the dataset, however, that actually has not happened!
 #Therefore, we might underestimate the actual duration of liquidity positions.
-
-
 
 ######## Swap burn ratio's V3
 swapsV2_1 = swapV2(timestamp_counter = 1654041601, end = 1634041601 ,  pool = '"0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"' )
 swapsV2_2 = swapV2(timestamp_counter = 1634041601, end = 1620259200 ,  pool = '"0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"' )
 swapsV2 = pd.concat([swapsV2_1, swapsV2_2], axis=0)
-
 
 #V2
 FrequenciesSwap_MintsV2, FrequenciesSwap_BurnsV2, FrequenciesMints_BurnsV2, Freq_RatioSwap_MintsV2, Freq_RatioSwap_BurnsV2, Freq_RatioMints_BurnsV2  = ratiosV2(swapsV2, mintsV2, burnsV2)
@@ -149,6 +142,13 @@ swapsV3 = pd.concat([Swaps, Swaps3000], axis = 0)
 mintsV3 = pd.concat([Mints, Mints3000], axis = 0)
 burnsV3 = pd.concat([Burns, Burns3000], axis = 0)
 FrequenciesSwap_Mints, FrequenciesSwap_Burns, FrequenciesMints_Burns, Freq_RatioSwap_Mints, Freq_RatioSwap_Burns, Freq_RatioMints_Burns  = ratiosV3(swapsV3, mintsV3, burnsV3)
+
+#Unique LD's and LP's
+len(np.unique(mintsV3['origin']))
+len(np.unique(mintsV2['origin']))
+len(np.unique(swapsV3['origin']))
+len(np.unique(swapsV2['to']))
+
 
 #Swap Mint ratio
 plt.plot(FrequenciesSwap_Mints['timestamp'], Freq_RatioSwap_Mints, label = 'V3', color = 'mediumorchid')
@@ -194,7 +194,7 @@ A = (Mints['amount0'] + (Mints['amount'] * pow(10, 6-18))/np.sqrt(1.0001 ** Mint
 B = (Mints['amount'] * pow(10, 6-18)) ** 2
 
 
-######## Market Depth convert to something daily
+######## Market Depth
 
 # Call functions from other file
 dfrgns, MintBurn = MarketDepthV3Part1(Pools = Pools, Mints = Mints, Burns = Burns, tickspacing=10, UpperCut=240000, LowerCut=170000,  decimals0 = 6, decimals1 = 18)
@@ -223,13 +223,13 @@ dfdepthV2 = dfdepthV2.iloc[::-1] #Reverse dataframe to start with lowest timesta
 # X_axis = np.arange(len(DepthDistribution.loc[:,2]))
 # width = 0.35
 # fig, ax = plt.subplots()
-# ax.bar(X_axis - width/2, DepthDistribution.loc[:,0], width, label = "V3 (0.05% + 0.3% pool)", color = 'mediumorchid')
+# ax.bar(X_axis - width/2, DepthDistribution.loc[:,0], width, label = "V3", color = 'mediumorchid')
 # ax.tick_params(axis='y', labelcolor='mediumorchid')
 # ax2 = ax.twinx()
 # ax2.bar(X_axis + width/2, DepthDistribution.loc[:,1], width, label = "V2", color = 'deeppink')
 # ax2.tick_params(axis='y', labelcolor='deeppink')
 # plt.ylim(ymin=0)
-# fig.legend(title='V2/V3')
+# fig.legend()
 # plt.xticks(X_axis, DepthDistribution.loc[:,2])
 # plt.title('Mean Market Depth per Price Impact')
 # plt.xlabel("+/- % from spot")
@@ -238,13 +238,13 @@ dfdepthV2 = dfdepthV2.iloc[::-1] #Reverse dataframe to start with lowest timesta
 
 
 fig, ax = plt.subplots()
-ax.plot(dfdepth500['timestamp'], ((dfdepth500['depth'][0:391] + dfdepth3000['depth'][1:391]))/1000000 ,label = "V3 (0.05% + 0.3% pool)", color = 'mediumorchid')
+ax.plot(dfdepth500['timestamp'], ((dfdepth500['depth'][0:391] + dfdepth3000['depth'][1:391]))/1000000 ,label = "V3", color = 'mediumorchid')
 ax.tick_params(axis='y', labelcolor='mediumorchid')
 ax2 = ax.twinx()
 ax2.plot(dfdepth500['timestamp'], dfdepthV2['depth']/1000000, label = "V2", color = 'deeppink')
 ax2.tick_params(axis='y', labelcolor='deeppink')
 plt.ylim(ymin=0)
-fig.legend(title='V2/V3')
+fig.legend()
 plt.title('Market Depth V2 vs V3 : +/-2% Price Impact ')
 plt.xlabel("Date")
 plt.ylabel("Depth ($mm)")
@@ -327,14 +327,6 @@ Rv3['FeeYield'].describe()
 Rv3['AdSelCos'].describe()
 Rv3['InvHolRet'].describe()
 
-
-#Plot Returns from just fees
-plt.hist(Rv3['FeeYield'], bins = 50, color = "pink")
-plt.xlabel('Returns')
-plt.ylabel("Number closed LP positions")
-plt.title('Liquidity Provider Returns V3')
-plt.show()
-
 #Plot Return decomposition
 plt.hist(Rv3['InvHolRet'], weights=np.ones(len(Rv3['InvHolRet'])) / len(Rv3['InvHolRet']), bins = 60, label = 'Inventory Holding Returns', alpha = 1, color = "deepskyblue")
 plt.hist(Rv3['AdSelCos'], weights=np.ones(len(Rv3['AdSelCos'])) / len(Rv3['AdSelCos']), bins = 75 , label = 'Adverse Selection Costs', alpha=0.7, color = "red")
@@ -342,7 +334,8 @@ plt.hist(Rv3['FeeYield'], weights=np.ones(len(Rv3['FeeYield'])) / len(Rv3['FeeYi
 plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
 plt.xlabel('Returns')
 plt.xlim(xmin=-0.5, xmax = 0.5)
-plt.ylabel("% closed LP positions")
+plt.ylim(ymax = 1)
+plt.ylabel("% LP positions")
 plt.title('Liquidity Provider Return Split V3')
 plt.legend(title='Return Split V3')
 plt.show()
@@ -359,25 +352,26 @@ Rv2['F'].describe()
 DesV2 = Rv2.describe()
 
 #Plot Returns from just fees
-plt.hist(Rv2['F'], weights=np.ones(len(Rv2['F'])) / len(Rv2['F']), bins = 30, label = 'v2', color = "deeppink", alpha =0.9)
-plt.hist(Rv3['FeeYield'], weights=np.ones(len(Rv3['FeeYield'])) / len(Rv3['FeeYield']), bins = 54, label = 'v3', alpha = 0.8, color = "mediumorchid")
+plt.hist(Rv3['FeeYield'], weights=np.ones(len(Rv3['FeeYield'])) / len(Rv3['FeeYield']), bins = 57, label = 'V3', alpha = 1, color = "mediumorchid")
+plt.hist(Rv2['F'], weights=np.ones(len(Rv2['F'])) / len(Rv2['F']), bins = 30, label = 'V2', color = "deeppink", alpha =0.6)
 plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
 plt.xlabel('Returns')
 plt.xlim(xmin=0, xmax = 0.3)
-plt.ylabel("% closed LP positions")
+plt.ylabel("% LP positions")
 plt.title('Liquidity Provider Fee Returns')
-plt.legend(title='V2/V3')
+plt.legend()
 plt.show()
 
 
 #Plot Return decomposition
 plt.hist(Rv2['InvHolRet'], weights=np.ones(len(Rv2['InvHolRet'])) / len(Rv2['InvHolRet']), bins = 47, label = 'Inventory Holding Returns', alpha = 1, color = "deepskyblue")
-plt.hist(Rv2['AdSelCos'], weights=np.ones(len(Rv2['AdSelCos'])) / len(Rv2['AdSelCos']), bins = 6 , label = 'Adverse Selection Costs', alpha=0.7, color = "red")
-plt.hist(Rv2['F'], weights=np.ones(len(Rv2['F'])) / len(Rv2['F']), bins = 10, label = 'Fee Yield', alpha = 0.7, color = "lawngreen")
+plt.hist(Rv2['AdSelCos'], weights=np.ones(len(Rv2['AdSelCos'])) / len(Rv2['AdSelCos']), bins = 10 , label = 'Adverse Selection Costs', alpha=0.7, color = "red")
+plt.hist(Rv2['F'], weights=np.ones(len(Rv2['F'])) / len(Rv2['F']), bins = 15, label = 'Fee Yield', alpha = 0.7, color = "lawngreen")
 plt.gca().yaxis.set_major_formatter(PercentFormatter(1))
 plt.xlabel('Returns')
 plt.xlim(xmin=-0.5, xmax = 0.5)
-plt.ylabel("% closed LP positions")
+plt.ylim(ymax = 1)
+plt.ylabel("% LP positions")
 plt.title('Liquidity Provider Return Split V2')
 plt.legend(title='Return Split V2')
 plt.show()
