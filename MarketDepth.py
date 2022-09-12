@@ -22,14 +22,13 @@ def MarketDepthV2(Pools, priceImpact):
     MarketDepth["depth"] = C
 
     MarketDepth = pd.concat([Pools['timestamp'], MarketDepth["depth"]], axis = 1)
-    #plt.plot(MarketDepth['timestamp'], MarketDepth["MarketDepth"])
 
     return MarketDepth
 
 
-### Appendix 7.1(Derivation for v2 market depth) ####
+### Appendix 7.1(Derivation for v3 market depth) ####
 
-
+# Code mainly from "The Dominance of Uniswap v3 Liquidity" by Gordon Liao and Dan Robinson
 def genLiqRange(dft, tickspacing=60):
     #' Generate Liquidity Distribution (liquidity amount) based on default tick size
     #' returns dataframe with columns 'tickLower', 'amount', 'price'
@@ -171,13 +170,14 @@ def fillGranularDistributionOverTime(liqdist, depthpct=0.02, tickspacing=60):
     return dfdepth
 
 
-#Created to easily use/call the functions listed above
-#MarketDepthV3Part1() takes LONGGGGGGGGGGG to run. Safe file directly afterwards is preferred
+# Created to easily use/call the functions listed above
+# MarketDepthV3Part1() takes LONGGGGGGGGGGG to run. Safe file directly afterwards is preferred
 def MarketDepthV3Part1(Pools, Mints, Burns, tickspacing=60, decimals0 = 6, decimals1 = 18, UpperCut = 240000, LowerCut = 170000):
     Pools = Pools
     Mints = Mints
     Burns = Burns
 
+    # Lower and Upper cut used to speed up reduce complexity algorithm. Not much liquidity is found outside these bounds, so it doesn't hurt.
     MintBurn = pd.concat([Mints, Burns], axis=0)
     MintBurn = MintBurn[MintBurn.tickLower > LowerCut]
     MintBurn = MintBurn[MintBurn.tickLower < UpperCut]
@@ -192,6 +192,7 @@ def MarketDepthV3Part2(dfrgns, Pools, depthpct=0.02, tickspacing=60, decimals0 =
     tickspacing = tickspacing
     dfrgns = dfrgns
 
+    #C lean Data
     dfprice = Pools[['timestamp', 'token0Price']].rename(columns={"token0Price": "P"})
     dfprice['P'] = dfprice['P'].astype(float)
     dfrgns = dfrgns.reset_index()
@@ -199,6 +200,7 @@ def MarketDepthV3Part2(dfrgns, Pools, depthpct=0.02, tickspacing=60, decimals0 =
 
     dfrgns['amount'] = dfrgns['amount'] / pow(10, 6 - 18) #transfer back to non-cleaned data
 
+    # Calculate Market Depth over time
     liqdist = pd.DataFrame(genDepthOverTime(dfrgns, tickspacing=tickspacing))
     dfdepth = fillGranularDistributionOverTime(liqdist, depthpct=depthpct, tickspacing=tickspacing)
 

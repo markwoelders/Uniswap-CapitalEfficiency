@@ -1,4 +1,4 @@
-#The Mint.py file is used to create a list of pool contract ids and corresponding
+#The PoolContracts.py file is used to create a list of pool contract ids and corresponding
 # tickspacing and convert them to lower case
 #This file should be seen as notes, but can be implemented as more pools will be analysed
 

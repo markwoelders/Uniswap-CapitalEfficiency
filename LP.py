@@ -26,11 +26,12 @@ def LPreturns(Fees, Pools, Burns):
     Pools = Pools
     Burns = Burns
 
+    # Clean Data
     Fees = Fees.sort_values(by=["timestamp"], inplace=False, ascending=False)
-
     Pools['token0Price'] = Pools['token0Price'].astype(float)
     Pools['token1Price'] = Pools['token1Price'].astype(float)
 
+    # Merge Data
     Fees2 = pd.merge(Fees, Pools[['token1Price', 'token0Price', 'timestamp']], on=['timestamp'], how="inner")
 
     # Calculate Fees for collectedFeesToken >= withdrawn, else -999 used to filter out odd transactions
@@ -54,39 +55,30 @@ def LPreturns(Fees, Pools, Burns):
 
     D = pd.merge(C, Pools2[['token1Price', 'token0Price', 'timestamp_y']], on=['timestamp_y'], how="inner")
 
-    R = pd.DataFrame()
-    R['V0'] = D['depositedToken0'] + D['depositedToken1'] * D['token0Price_x']
-    R['VT'] = D['withdrawnToken0'] + D['withdrawnToken1'] * D['token0Price_y']
-    R['F'] = D['FeesToken0'] + D['FeesToken1'] * D['token0Price_y']
-    R['Tot'] = ((R['VT'] + R['F']) / R['V0'] - 1)  # * 100
-
-    R['InvHolRet'] = ((D['depositedToken0'] + D['depositedToken1'] * D['token0Price_y']) / R['V0']) - 1
-    R['AdSelCos'] = (R['VT'] / R['V0'] - 1) - R['InvHolRet']
-    R['FeeYield'] = R['F'] / R['V0']
-
     #Split returns into components as in paper by Peter O'Neill
     #AdselCos should be negative (almost) everywhere
     #FeeYield should be non-negative
     #InvHolRet can be negative or positive
     R = pd.DataFrame()
-    R['V0'] = D['depositedToken0'] + D['depositedToken1']*D['token0Price_x']
-    R['VT'] = D['withdrawnToken0'] + D['withdrawnToken1']*D['token0Price_y']
-    R['F'] = D['FeesToken0'] + D['FeesToken1']*D['token0Price_y']
-    R['Tot'] = ( (R['VT'] + R['F']) / R['V0'] -1 ) #* 100
+    R['V0'] = D['depositedToken0'] + D['depositedToken1']*D['token0Price_x'] #Portfolio Value time 0
+    R['VT'] = D['withdrawnToken0'] + D['withdrawnToken1']*D['token0Price_y'] #Portfolio Value time T (burn)
+    R['F'] = D['FeesToken0'] + D['FeesToken1']*D['token0Price_y'] #Fixed portfolio Value time T
+    R['Tot'] = ( (R['VT'] + R['F']) / R['V0'] -1 ) #* 100 #Total Returns
 
-    R['InvHolRet'] = ( (D['depositedToken0'] + D['depositedToken1']*D['token0Price_y'])/R['V0']) - 1
-    R['AdSelCos'] = (R['VT']/R['V0'] - 1) - R['InvHolRet']
-    R['FeeYield'] = R['F']/R['V0']
+    R['InvHolRet'] = ( (D['depositedToken0'] + D['depositedToken1']*D['token0Price_y'])/R['V0']) - 1 #Inventory Holding Returns
+    R['AdSelCos'] = (R['VT']/R['V0'] - 1) - R['InvHolRet'] #Adverse Selection Costs
+    R['FeeYield'] = R['F']/R['V0'] #Fee Yield
 
-    R['Tot2'] = R['InvHolRet'] + R['AdSelCos'] + R['FeeYield']
+    R['Tot2'] = R['InvHolRet'] + R['AdSelCos'] + R['FeeYield'] # Check total returns
 
-    return R
+    return R, D
 
 def LPreturnsV2(LiqSnaps, burnsV2, mintsV2):
     LiqSnaps = LiqSnaps
     mintsV2 = mintsV2
     burnsV2 = burnsV2
 
+    # Clean Data
     LiqSnaps = LiqSnaps.rename(columns={'user.id': 'origin'})
     LiqSnaps['reserve0'] = LiqSnaps['reserve0'].astype(float)
     LiqSnaps['reserve1'] = LiqSnaps['reserve1'].astype(float)
@@ -96,7 +88,6 @@ def LPreturnsV2(LiqSnaps, burnsV2, mintsV2):
     mintsV2['amount1'] = mintsV2['amount1'].astype(float)
     burnsV2['amount0'] = burnsV2['amount0'].astype(float)
     burnsV2['amount1'] = burnsV2['amount1'].astype(float)
-
     A = pd.merge(mintsV2, burnsV2, on=['liquidity'], how="inner")
     A['timestamp_x'] = A['timestamp_x'].astype(int)
     A['timestamp_y'] = A['timestamp_y'].astype(int)
@@ -107,9 +98,9 @@ def LPreturnsV2(LiqSnaps, burnsV2, mintsV2):
                  right_on='timestamp').drop('timestamp', axis=1)
     B = B.drop_duplicates(keep='first', subset=['origin_x', 'timestamp_x', 'liquidity'])
 
+    # Calculate variables of interest for V2 Returns
     B['P_x'] = B['reserve1_x'] / B['reserve0_x']
     B['P_y'] = B['reserve1_y'] / B['reserve0_y']
-
     B['liquidityTokenTotalSupply_x'] = B['liquidityTokenTotalSupply_x'].astype(float)
     B['liquidityTokenTotalSupply_y'] = B['liquidityTokenTotalSupply_y'].astype(float)
     B['liquidity'] = B['liquidity'].astype(float)
@@ -118,6 +109,7 @@ def LPreturnsV2(LiqSnaps, burnsV2, mintsV2):
     R['s_x'] = B['liquidity'] / B['liquidityTokenTotalSupply_x']
     R['s_y'] = B['liquidity'] / B['liquidityTokenTotalSupply_y']
 
+    # Code mainly from "When Uniswap v3 returns more fees for passive LPs", by Austin Adams Gordon Liao for V2
     v2_pool = pd.DataFrame()
     v2_pool["tok1/tok0_t1"] = B["reserve0_y"].astype(float) / B["reserve1_y"].astype(float)
     v2_pool["tok1/tok0_t0"] = B["reserve0_x"].astype(float) / B["reserve1_x"].astype(float)
@@ -158,21 +150,20 @@ def LPreturnsV2(LiqSnaps, burnsV2, mintsV2):
                                    * v2_pool["tok1/tok0_t1"]
                            )
 
-    #     px_ratio = v2_pool['tok1/tok0_t1'] / v2_pool['tok1/tok0_t0']
-    #     divergence_loss = 2 * np.sqrt(px_ratio) / (1 + px_ratio) - 1
-    #     v2_pool['imp_loss'] = divergence_loss * v2_pool['hodlPort_t1-t0']
-    #     v2_pool['feeRet'] = v2_pool['v2Port_t1'] - (v2_pool['imp_loss'] + v2_pool['hodlPort_t1-t0'])
-
-    # these are equivalent
     v2_pool["feeRet"] = v2_pool["v2Port_t1"] - v2_pool["synPort_t1"]
     v2_pool["pctRet"] = v2_pool["feeRet"] / v2_pool["v2Port_t0"]
+    #
 
-    R['V0'] = (B['reserve0_x'] * B['P_x'] + B['reserve1_x']) * R['s_x']
-    R['VT'] = (B['reserve0_y'] * B['P_y'] + B['reserve1_y']) * R['s_y']
-    R['VT,FIX'] = (B['reserve0_x'] * B['P_y'] + B['reserve1_x']) * R['s_x']
-    R['Tot'] = (B['reserve1_y'] * R['s_y']) / (B['reserve1_x'] * R['s_x']) - 1
-    R['InvHolRet'] = R['VT,FIX'] / R['V0'] - 1
-    R['F'] = v2_pool["pctRet"]
-    R['AdSelCos'] = R['Tot'] - R['InvHolRet'] - R['F']
+    #Split returns into components as in paper by Peter O'Neill
+    #AdselCos should be negative (almost) everywhere
+    #FeeYield should be non-negative
+    #InvHolRet can be negative or positive
+    R['V0'] = (B['reserve0_x'] * B['P_x'] + B['reserve1_x']) * R['s_x'] #Portfolio Value time 0
+    R['VT'] = (B['reserve0_y'] * B['P_y'] + B['reserve1_y']) * R['s_y'] #Portfolio Value time T (burn)
+    R['VT,FIX'] = (B['reserve0_x'] * B['P_y'] + B['reserve1_x']) * R['s_x'] #Fixed Portfolio Value time T
+    R['Tot'] = (B['reserve1_y'] * R['s_y']) / (B['reserve1_x'] * R['s_x']) - 1 # Total Returns
+    R['InvHolRet'] = R['VT,FIX'] / R['V0'] - 1 # Inventory Holding Returns
+    R['F'] = v2_pool["pctRet"] # Fee Yield
+    R['AdSelCos'] = R['Tot'] - R['InvHolRet'] - R['F'] # Adverse Selection Costs
 
-    return R
+    return R, B
